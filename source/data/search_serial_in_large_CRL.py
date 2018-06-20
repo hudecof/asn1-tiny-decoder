@@ -24,6 +24,7 @@ from subprocess import Popen, PIPE, STDOUT # for debugging only
 # Install dumpasn1 package to make this work.
 # For debugging only, prints ASN1 structures nicely.  
 def dump_asn1(der):
+	return ""
 	p = Popen(['dumpasn1','-a', '-'], stdout=PIPE, stdin=PIPE, 
 			stderr=STDOUT)
 	dump = p.communicate(input=der)[0]
@@ -50,11 +51,11 @@ def extract_crl_info(crl_der):
 	# advance 1 item
 	i = asn1_node_next(crl_der,i)
 	bytestr = asn1_get_value_of_type(crl_der,i,'UTCTime')
-	crl_not_valid_before = datetime.datetime.strptime(bytestr,'%y%m%d%H%M%SZ')
+	crl_not_valid_before = datetime.datetime.strptime(bytestr.decode('utf-8'),'%y%m%d%H%M%SZ')
 	# advance 1 item
 	i = asn1_node_next(crl_der,i)
 	bytestr = asn1_get_value_of_type(crl_der,i,'UTCTime')
-	crl_not_valid_after = datetime.datetime.strptime(bytestr,'%y%m%d%H%M%SZ')
+	crl_not_valid_after = datetime.datetime.strptime(bytestr.decode('utf-8'),'%y%m%d%H%M%SZ')
 
 	# advance 1 item (the list)
 	i = asn1_node_next(crl_der,i) 
@@ -97,34 +98,34 @@ def extract_crl_info(crl_der):
 
 
 # Print the header fields and the dictionary
-def search_certificate(crl_der,serial,(a,b,c,d,serials_idx)):
-	print '*** Some information about the CRL'
-	print 'crl_not_valid_before: ',a
-	print 'crl_not_valid_after:  ',b
-	print 'crl_signature:        ', \
-			c.encode('hex')[:30],'... ',len(c),' Bytes'
+def search_certificate(crl_der,serial, x):
+	a,b,c,d,serials_idx = x 
+	print('*** Some information about the CRL')
+	print('crl_not_valid_before:  {}'.format(a))
+	print('crl_not_valid_after:   {}'.format(b))
+	print('crl_signature:         {} ...  {}  Bytes'.format(c.hex()[:30],len(c)))
 	(ixs,ixf,ixl) = d
-	print 'crl_signed_content:   ', d, ixl+1 - ixs,'Bytes'
+	print('crl_signed_content:    {} {} Bytes'.format(d, ixl+1 - ixs))
 	#print dump_asn1(d)
-	print
-	print '*** The CRL lists', len(serials_idx),'certificates.' 
+	print()
+	print('*** The CRL lists {} certificates.'.format(len(serials_idx)))
 	if len(serials_idx) <= 10 :
-		for c,p in serials_idx.items() :
-			print 'serial: ',c,'  position:',p 
-	print
+		for c,p in serials_idx.items():
+			print('serial:  {}   position: {}'.format(c ,p))
+	print()
 
-	print '*** Search in CRL for serial no:', serial 
-	print 
+	print('*** Search in CRL for serial no: {}'.format(serial)) 
+	print()
 
 	if serial in serials_idx: 
-		print '*** SERIAL FOUND IN LIST!:'
-		print '**      Revoked certificat data'
-		print '- Certificat serial no: ', serial
+		print('*** SERIAL FOUND IN LIST!:')
+		print('**      Revoked certificat data')
+		print('- Certificat serial no:  {}'.format(serial))
 		# Now use the pointers to print the certificate entries.
-		print '- Decoded ASN1 data:'
+		print('- Decoded ASN1 data:')
 		p = serials_idx[serial]
-		print dump_asn1(asn1_get_all(crl_der,p))
-		print
+		print(dump_asn1(asn1_get_all(crl_der,p)))
+		print()
 
 
 
@@ -133,22 +134,22 @@ def search_certificate(crl_der,serial,(a,b,c,d,serials_idx)):
 crl_filename = 'www.sk.ee-crl.crl'
 search_serial = 1018438612
 
-print "****** INDEXING CRL:", crl_filename
-print
-crl_der = open(crl_filename).read()
+print("****** INDEXING CRL: {}".format(crl_filename))
+print()
+crl_der = open(crl_filename, 'rb').read()
 dictionary = extract_crl_info(crl_der)
 search_certificate(crl_der,search_serial,dictionary)
 #print crl_der.encode("hex")
 #print dump_asn1(crl_der)
-print
-print
+print()
+print()
 
 crl_filename = 'www.sk.ee-esteid2011.crl'
 search_serial = 131917818486436565990004418739006228479
 
-print "****** INDEXING CRL:", crl_filename
-print
-crl_der = open(crl_filename).read()
+print("****** INDEXING CRL: {}".format(crl_filename))
+print()
+crl_der = open(crl_filename, 'rb').read()
 dictionary = extract_crl_info(crl_der)
 search_certificate(crl_der,search_serial,dictionary)
 
