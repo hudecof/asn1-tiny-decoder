@@ -18,18 +18,22 @@ def asn1_node_root(der):
 	return asn1_read_length(der,0)
 
 # gets the next ASN1 structure following (ixs,ixf,ixl) 
-def asn1_node_next(der, (ixs,ixf,ixl)):
+def asn1_node_next(der, ix):
+	ixs,ixf,ixl = ix
 	return asn1_read_length(der,ixl+1)
 
 # opens the container (ixs,ixf,ixl) and returns the first ASN1 inside 
-def asn1_node_first_child(der, (ixs,ixf,ixl)):
-	if ord(der[ixs]) & 0x20 != 0x20:
+def asn1_node_first_child(der, ix):
+	ixs,ixf,ixl = ix
+	if der[ixs] & 0x20 != 0x20:
 		raise ValueError('Error: can only open constructed types. '
 				+'Found type: 0x'+der[ixs].encode("hex"))
 	return asn1_read_length(der,ixf)
 
 # is true if one ASN1 chunk is inside another chunk. 
-def asn1_node_is_child_of((ixs,ixf,ixl), (jxs,jxf,jxl)):
+def asn1_node_is_child_of(ix, jx):
+	ixs,ixf,ixl = ix
+	jxs,jxf,jxl = jx
 	return ( (ixf <= jxs ) and (jxl <= ixl) ) or \
            ( (jxf <= ixs ) and (ixl <= jxl) )  
 
@@ -40,7 +44,8 @@ def asn1_node_is_child_of((ixs,ixf,ixl), (jxs,jxf,jxl)):
 ##### ACCESS PRIMITIVES
 
 # get content and verify type byte
-def asn1_get_value_of_type(der,(ixs,ixf,ixl),asn1_type):
+def asn1_get_value_of_type(der, ix ,asn1_type):
+	ixs,ixf,ixl = ix
 	asn1_type_table = {
 	'BOOLEAN':           0x01,	'INTEGER':           0x02,
 	'BIT STRING':        0x03,	'OCTET STRING':      0x04,
@@ -50,18 +55,20 @@ def asn1_get_value_of_type(der,(ixs,ixf,ixl),asn1_type):
 	'UTCTime':           0x17,	'ENUMERATED':        0x0A,
 	'UTF8String':        0x0C,	'PrintableString':   0x13,
 	}
-	if asn1_type_table[asn1_type] != ord(der[ixs]):
+	if asn1_type_table[asn1_type] != der[ixs]:
 		raise ValueError('Error: Expected type was: '+
 			hex(asn1_type_table[asn1_type])+ 
 			' Found: 0x'+der[ixs].encode('hex')) 
 	return der[ixf:ixl+1]
 
 # get value
-def asn1_get_value(der,(ixs,ixf,ixl)):
+def asn1_get_value(der, ix):
+	ixs,ixf,ixl = ix
 	return der[ixf:ixl+1]
 
 # get type+length+value
-def asn1_get_all(der,(ixs,ixf,ixl)):
+def asn1_get_all(der, ix):
+	ixs,ixf,ixl = ix
 	return der[ixs:ixl+1]
 
 ##### END ACCESS PRIMITIVES
@@ -72,7 +79,7 @@ def asn1_get_all(der,(ixs,ixf,ixl)):
 
 # converter
 def bitstr_to_bytestr(bitstr):
-	if bitstr[0] != '\x00':
+	if bitstr[0] != 0x00:
 		raise ValueError('Error: only 00 padded bitstr can be converted to bytestr!')
 	return bitstr[1:]
 
@@ -82,14 +89,14 @@ def bytestr_to_int(s):
 	i = 0
 	for char in s:
 		i <<= 8
-		i |= ord(char)
+		i |= char
 	return i
 
 # ix points to the first byte of the asn1 structure
 # Returns first byte pointer, first content byte pointer and last.
 def asn1_read_length(der,ix):
-	first= ord(der[ix+1])
-	if  (ord(der[ix+1]) & 0x80) == 0:
+	first= der[ix+1]
+	if  (der[ix+1] & 0x80) == 0:
 		length = first
 		ix_first_content_byte = ix+2
 		ix_last_content_byte = ix_first_content_byte + length -1
